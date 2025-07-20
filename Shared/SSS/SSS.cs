@@ -71,8 +71,8 @@ namespace Graphics
         static readonly int _SSS_ProfileTexRId = Shader.PropertyToID("SSS_ProfileTexR");
         static readonly int _LightingTexId = Shader.PropertyToID("LightingTex");
         static readonly int _LightingTexBlurredId = Shader.PropertyToID("LightingTexBlurred");
-        static readonly int _LightingTexRId = Shader.PropertyToID("LightingTex");
-        static readonly int _LightingTexBlurredRId = Shader.PropertyToID("LightingTexBlurred");
+        static readonly int _LightingTexRId = Shader.PropertyToID("LightingTexR");
+        static readonly int _LightingTexBlurredRId = Shader.PropertyToID("LightingTexBlurredR");
         static readonly int _DepthTestId = Shader.PropertyToID("DepthTest");
         static readonly int _maxDistanceId = Shader.PropertyToID("maxDistance");
         static readonly int _NormalTestId = Shader.PropertyToID("NormalTest");
@@ -455,15 +455,48 @@ namespace Graphics
                 switch (toggleTexture)
                 {
                     case ToggleTexture.LightingTex:
-                        sss_buffers_viewer.InputBuffer = LightingTex;
+                        if (!cam.stereoEnabled)
+                        {
+                            sss_buffers_viewer.InputBuffer = LightingTex;
+                        }
+                        else if (cam.stereoEnabled && cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left)
+                        {
+                            sss_buffers_viewer.InputBuffer = LightingTex;
+                        }
+                        else
+                        {
+                            sss_buffers_viewer.InputBuffer = LightingTexR;
+                        }
                         sss_buffers_viewer.enabled = true;
                         return;
                     case ToggleTexture.LightingTexBlurred:
-                        sss_buffers_viewer.InputBuffer = LightingTexBlurred;
+                        if (!cam.stereoEnabled)
+                        {
+                            sss_buffers_viewer.InputBuffer = LightingTexBlurred;
+                        }
+                        else if (cam.stereoEnabled && cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left)
+                        {
+                            sss_buffers_viewer.InputBuffer = LightingTexBlurred;
+                        }
+                        else
+                        {
+                            sss_buffers_viewer.InputBuffer = LightingTexBlurredR;
+                        }
                         sss_buffers_viewer.enabled = true;
                         return;
                     case ToggleTexture.ProfileTex:
-                        sss_buffers_viewer.InputBuffer = SSS_ProfileTex;
+                        if (!cam.stereoEnabled)
+                        {
+                            sss_buffers_viewer.InputBuffer = SSS_ProfileTex;
+                        }
+                        else if (cam.stereoEnabled && cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left)
+                        {
+                            sss_buffers_viewer.InputBuffer = SSS_ProfileTex;
+                        }
+                        else
+                        {
+                            sss_buffers_viewer.InputBuffer = SSS_ProfileTexR;
+                        }
                         sss_buffers_viewer.enabled = true;
                         return;
                     case ToggleTexture.None:
