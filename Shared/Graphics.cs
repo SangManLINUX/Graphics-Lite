@@ -20,7 +20,7 @@ using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using NVIDIA;
+//using NVIDIA;
 
 namespace Graphics
 {

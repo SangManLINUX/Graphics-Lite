@@ -1,7 +1,7 @@
 ﻿using ADV.Backup;
 using Graphics.CTAA;
 using KKAPI.Utilities;
-using NVIDIA;
+//using NVIDIA;
 using System;
 using System.Collections.Generic;
 using System.Linq;
