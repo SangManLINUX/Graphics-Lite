@@ -1,7 +1,7 @@
 ﻿using ADV.Backup;
 using Graphics.CTAA;
 using KKAPI.Utilities;
-using NVIDIA;
+//using NVIDIA;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,9 +24,9 @@ namespace Graphics
         }
 
         private Camera cam;
-        public Camera lightingCamera;
-        private Camera profileCamera;
-        private Camera shadowCamera;
+        //public Camera lightingCamera;
+        //private Camera profileCamera;
+        //private Camera shadowCamera;
 
         private bool _debugDistance;
         [SerializeField][Range(0, 1)] public float _depthTest = 0.3f;
@@ -46,8 +46,7 @@ namespace Graphics
         [Range(0, 10)] public bool ShowCameras;
         public bool ShowGUI;
         public SSS_convolution sss_convolution;
-        private CTAA_PC ctaa;
-
+        //private CTAA_PC ctaa;
         //private NVIDIA.Ansel ansel;
         //private SEGI.SEGI segi;
 
@@ -771,5 +770,117 @@ namespace Graphics
             rt = null;
         }
         #endregion
+
+        private void MyPreRenderCallback(Camera cam)
+        {
+            if (cam.stereoEnabled)
+            {
+                if (cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left)
+                {
+                    Graphics.Instance.Log.LogInfo("Left Eye OnPreRender for camera: " + cam.name);
+                }
+                else if (cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right)
+                {
+                    Graphics.Instance.Log.LogInfo("Right Eye OnPreRender for camera: " + cam.name);
+                }
+                else
+                {
+                    Graphics.Instance.Log.LogInfo("Mono or Unknown Eye OnPreRender for camera: " + cam.name);
+                }
+            }
+            else
+            {
+                Graphics.Instance.Log.LogInfo("Non-VR Camera OnPreRender: " + cam.name);
+            }
+        }
+
+        private void MyCameraCheckCallback()
+        {
+            Camera[] activeCameras = Camera.allCameras;
+            if (activeCameras.Length > 0)
+            {
+                Graphics.Instance.Log.LogInfo($"(OnEnable()) On the scene, number of activated camera: {activeCameras.Length}.");
+                foreach (Camera myCam in activeCameras)
+                {
+                    //Graphics.Instance.Log.LogInfo($"Activated camera name: {cam.name}, gameObject name: {cam.gameObject.name}");
+                    //Graphics.Instance.Log.LogInfo($"Activated camera pos: {cam.transform.position}, rotaion: {cam.transform.rotation}");
+                    if (myCam.name == "VRGIN_Camera (eye)")
+                    {
+                        Graphics.Instance.Log.LogInfo($"(VRGIN_Camera (eye)) stereoEnabled: {myCam.stereoEnabled}, " +
+                            $"cam.stereoActiveEye: {myCam.stereoActiveEye}.");
+                        Graphics.Instance.Log.LogInfo($"VRGIN_Camera (eye) pos: {myCam.transform.position}, localPos: {myCam.transform.localPosition}");
+                        Transform lightingCameraGo = myCam.transform;
+                        for (int i = 0; i < lightingCameraGo.childCount; i++)
+                        {
+                            Transform childTransform = lightingCameraGo.GetChild(i);
+                            Graphics.Instance.Log.LogInfo($"childTransform name: {childTransform.name}.");
+                            Graphics.Instance.Log.LogInfo($"childTransform pos: {childTransform.position}, localPos: {childTransform.localPosition}");
+                        }
+                    }
+                }
+            }
+            else
+            {
+                Debug.Log("No camera in the scene");
+            }
+        }
+        
+        private Transform GetRightCamera()
+        {
+            Transform myTransform = null;
+            Camera[] activeCameras = Camera.allCameras;
+            if (activeCameras.Length > 0)
+            {
+                Graphics.Instance.Log.LogInfo($"(OnEnable()) On the scene, number of activated camera: {activeCameras.Length}.");
+                foreach (Camera myCam in activeCameras)
+                {
+                    //Graphics.Instance.Log.LogInfo($"Activated camera name: {cam.name}, gameObject name: {cam.gameObject.name}");
+                    //Graphics.Instance.Log.LogInfo($"Activated camera pos: {cam.transform.position}, rotaion: {cam.transform.rotation}");
+                    if (myCam.name == "VRGIN_Camera (eye)")
+                    {
+                        //Graphics.Instance.Log.LogInfo($"(VRGIN_Camera (eye)) stereoEnabled: {myCam.stereoEnabled}, " +
+                        //    $"cam.stereoActiveEye: {myCam.stereoActiveEye}.");
+                        //Graphics.Instance.Log.LogInfo($"VRGIN_Camera (eye) pos: {myCam.transform.position}, localPos: {myCam.transform.localPosition}");
+                        Transform lightingCameraGo = myCam.transform;
+                        for (int i = 0; i < lightingCameraGo.childCount; i++)
+                        {
+                            Transform childTransform = lightingCameraGo.GetChild(i);
+                            Graphics.Instance.Log.LogInfo($"childTransform name: {childTransform.name}.");
+                            Graphics.Instance.Log.LogInfo($"childTransform pos: {childTransform.position}, localPos: {childTransform.localPosition}");
+                            if (childTransform.name == "VRGIN_Camera (head)")
+                            {
+                                return childTransform;
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                Debug.Log("No camera in the scene");
+            }
+            return myTransform;
+        }
+
+        private void GetCameraInfo(Camera cam)
+        {
+            Graphics.Instance.Log.LogInfo($"==========");
+            Graphics.Instance.Log.LogInfo($"cam.name: {cam.name}, cam.gameObject.name: {cam.gameObject.name}.");
+            Graphics.Instance.Log.LogInfo($"cam.stereoEnabled: {cam.stereoEnabled}, cam.stereoActiveEye: {cam.stereoActiveEye}.");
+            Graphics.Instance.Log.LogInfo($"cam.stereoTargetEye: {cam.stereoTargetEye}");
+            Graphics.Instance.Log.LogInfo($"cam.transform.position: {cam.transform.position}, cam.transform.localPosition: {cam.transform.localPosition}");
+            Graphics.Instance.Log.LogInfo($"==========");
+        }
+
+        private void GetCameraIPD()
+        {
+            Vector3 leftEyeLocalPos = InputTracking.GetLocalPosition(XRNode.LeftEye);
+            Vector3 rightEyeLocalPos = InputTracking.GetLocalPosition(XRNode.RightEye);
+
+            float currentIPD = Vector3.Distance(leftEyeLocalPos, rightEyeLocalPos);
+
+            Graphics.Instance.Log.LogInfo($"(GetCameraIPD()), leftEyeLocalPos: {leftEyeLocalPos}, " +
+                $"rightEyeLocalPos: {rightEyeLocalPos},  currentIPD: {currentIPD}. ");
+        }
     }
 }
