@@ -109,7 +109,7 @@ namespace Graphics
         private static PerLightSettings FindMappedLightSettings(LightObject light, ReadOnlyDictionary<int, ObjectCtrlInfo> objects, PerLightSettings[] settings)
         {
 #if DEBUG
-            Graphics.Instance.Log.LogInfo($"Importing Light: {light?.OciLight} {light?.OciLight?.lightInfo?.dicKey} {light?.Light?.gameObject?.transform}");
+            //Graphics.Instance.Log.LogInfo($"Importing Light: {light?.OciLight} {light?.OciLight?.lightInfo?.dicKey} {light?.Light?.gameObject?.transform}");
 #endif
             if (light.OciLight != null)
             {
@@ -120,14 +120,14 @@ namespace Graphics
                     if (setting != null)
                     {
 #if DEBUG
-                        Graphics.Instance.Log.LogInfo($"Found by dic key Old: {oldKey} New: {light.OciLight.lightInfo.dicKey}");
+                        //Graphics.Instance.Log.LogInfo($"Found by dic key Old: {oldKey} New: {light.OciLight.lightInfo.dicKey}");
 #endif
                         return setting;
                     }
                 }
             }
 #if DEBUG
-            Graphics.Instance.Log.LogInfo($"No Settings Found");
+            //Graphics.Instance.Log.LogInfo($"No Settings Found");
 #endif
 
             return null;
@@ -149,7 +149,7 @@ namespace Graphics
                 if (setting != null)
                 {
 #if DEBUG
-                    Graphics.Instance.Log.LogInfo($"Found by dic key and hierarchy: {setting.LightId}:{setting.HierarchyPath}");
+                    //Graphics.Instance.Log.LogInfo($"Found by dic key and hierarchy: {setting.LightId}:{setting.HierarchyPath}");
 #endif
                     return setting;
                 }
@@ -159,7 +159,7 @@ namespace Graphics
                 if (setting != null)
                 {
 #if DEBUG
-                    Graphics.Instance.Log.LogInfo($"Found by dic key only: {setting.LightId}:{setting.HierarchyPath}");
+                    //Graphics.Instance.Log.LogInfo($"Found by dic key only: {setting.LightId}:{setting.HierarchyPath}");
 #endif
                     return setting;
                 }
@@ -168,9 +168,13 @@ namespace Graphics
             setting = settings.FirstOrDefault(s => s.HierarchyPath.Matches(light.Light.gameObject.transform));
 #if DEBUG
             if (setting != null)
-                Graphics.Instance.Log.LogInfo($"Found by hierarchy only: {setting.LightId}:{setting.HierarchyPath}");
+            {
+                //Graphics.Instance.Log.LogInfo($"Found by hierarchy only: {setting.LightId}:{setting.HierarchyPath}");
+            }
             else
-                Graphics.Instance.Log.LogInfo($"New Light");
+            {
+                //Graphics.Instance.Log.LogInfo($"New Light");
+            }
 #endif
             return setting;
         }
@@ -259,7 +263,7 @@ namespace Graphics
                     if (setting.HierarchyPath.ToString().StartsWith("/(Graphics)"))
                     {
 #if DEBUG
-                        Graphics.Instance.Log.LogInfo($"Adding Graphics Directional Light: {setting.LightName}, {setting.HierarchyPath}, {setting.LightId}.");
+                        //Graphics.Instance.Log.LogInfo($"Adding Graphics Directional Light: {setting.LightName}, {setting.HierarchyPath}, {setting.LightId}.");
 #endif
                         string lightName = setting.HierarchyPath.ToString();
                         lightName = lightName.Substring(lightName.IndexOf("/") + 1, lightName.LastIndexOf("(") - 1);
