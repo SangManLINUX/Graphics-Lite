@@ -20,9 +20,11 @@ namespace Graphics.CTAA
     {
         public override bool IsEnabledAndSupported(PostProcessRenderContext context)
         {
-            if (!base.IsEnabledAndSupported(context)) return false;
+            //Graphics.Instance.Log.LogInfo($"!base.IsEnabledAndSupported: {!base.IsEnabledAndSupported(context)}");
+            //if (!base.IsEnabledAndSupported(context)) return false;
 
             var ctaaPC = context.camera.GetComponent<CTAA_PC>();
+            //Graphics.Instance.Log.LogInfo($"ctaaPC.isActiveAndEnabled: {ctaaPC.isActiveAndEnabled}");
             return ctaaPC && ctaaPC.isActiveAndEnabled;
         }
     }
@@ -52,87 +54,50 @@ namespace Graphics.CTAA
                 }
                 //-----------------------------------------------------------
                 //RenderTexture ctaaSource = ctaa.PreEnhanceEnabled ? ctaa.afterPreEnhace : source;
-                if (ctaa.PreEnhanceEnabled)
+                var ctaaSource = ctaa.PreEnhanceEnabled ? ctaa.afterPreEnhace : ctx.source;
+                
+                if (ctaa.firstFrame)
                 {
-                    RenderTexture ctaaSource = ctaa.afterPreEnhace;
+                    //UnityEngine.Graphics.Blit(ctaaSource, rtAccum0);
+                    cmd.Blit(ctaaSource, ctaa.rtAccum0);
+                    ctaa.firstFrame = false;
+                }
 
-                    if (ctaa.firstFrame)
-                    {
-                        //UnityEngine.Graphics.Blit(ctaaSource, rtAccum0);
-                        cmd.Blit(ctaaSource, ctaa.rtAccum0);
-                        ctaa.firstFrame = false;
-                    }
+                ctaa.ctaaMat.SetFloat(CTAA_PC.CTAA_ShaderIDs._AdaptiveResolve, CTAA_PC.AdaptiveResolve);
+                ctaa.ctaaMat.SetVector(CTAA_PC.CTAA_ShaderIDs._ControlParams,
+                    new Vector4(1.0f, (float)ctaa.TemporalStability, ctaa.HdrResponse, ctaa.EdgeResponse));
 
-                    ctaa.ctaaMat.SetFloat(CTAA_PC.CTAA_ShaderIDs._AdaptiveResolve, CTAA_PC.AdaptiveResolve);
-                    ctaa.ctaaMat.SetVector(CTAA_PC.CTAA_ShaderIDs._ControlParams,
-                        new Vector4(1.0f, (float)ctaa.TemporalStability, ctaa.HdrResponse, ctaa.EdgeResponse));
-
-                    if (ctaa.swap)
-                    {
-                        ctaa.ctaaMat.SetTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccum0);
-                        //UnityEngine.Graphics.Blit(ctaaSource, rtAccum1, ctaaMat);
-                        //UnityEngine.Graphics.Blit(rtAccum1, destination);
-                        cmd.Blit(ctaaSource, ctaa.rtAccum1, ctaa.ctaaMat);
-                        cmd.Blit(ctaa.rtAccum1, ctx.destination);
-                    }
-                    else
-                    {
-                        ctaa.ctaaMat.SetTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccum1);
-                        //UnityEngine.Graphics.Blit(ctaaSource, rtAccum0, ctaaMat);
-                        //UnityEngine.Graphics.Blit(rtAccum0, destination);
-                        cmd.Blit(ctaaSource, ctaa.rtAccum0, ctaa.ctaaMat);
-                        cmd.Blit(ctaa.rtAccum0, ctx.destination);
-                    }
-
-                    //-----------------------------------------------------------            
-                    ctaa.swap = !ctaa.swap;
+                if (ctaa.swap)
+                {
+                    ctaa.ctaaMat.SetTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccum0);
+                    //UnityEngine.Graphics.Blit(ctaaSource, rtAccum1, ctaaMat);
+                    //UnityEngine.Graphics.Blit(rtAccum1, destination);
+                    cmd.Blit(ctaaSource, ctaa.rtAccum1, ctaa.ctaaMat);
+                    cmd.Blit(ctaa.rtAccum1, ctx.destination);
                 }
                 else
                 {
-                    RenderTargetIdentifier ctaaSource = ctx.source;
-
-                    if (ctaa.firstFrame)
-                    {
-                        //UnityEngine.Graphics.Blit(ctaaSource, rtAccum0);
-                        cmd.Blit(ctaaSource, ctaa.rtAccum0);
-                        ctaa.firstFrame = false;
-                    }
-
-                    ctaa.ctaaMat.SetFloat(CTAA_PC.CTAA_ShaderIDs._AdaptiveResolve, CTAA_PC.AdaptiveResolve);
-                    ctaa.ctaaMat.SetVector(CTAA_PC.CTAA_ShaderIDs._ControlParams,
-                        new Vector4(1.0f, (float)ctaa.TemporalStability, ctaa.HdrResponse, ctaa.EdgeResponse));
-
-                    if (ctaa.swap)
-                    {
-                        ctaa.ctaaMat.SetTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccum0);
-                        //UnityEngine.Graphics.Blit(ctaaSource, rtAccum1, ctaaMat);
-                        //UnityEngine.Graphics.Blit(rtAccum1, destination);
-                        cmd.Blit(ctaaSource, ctaa.rtAccum1, ctaa.ctaaMat);
-                        cmd.Blit(ctaa.rtAccum1, ctx.destination);
-                    }
-                    else
-                    {
-                        ctaa.ctaaMat.SetTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccum1);
-                        //UnityEngine.Graphics.Blit(ctaaSource, rtAccum0, ctaaMat);
-                        //UnityEngine.Graphics.Blit(rtAccum0, destination);
-                        cmd.Blit(ctaaSource, ctaa.rtAccum0, ctaa.ctaaMat);
-                        cmd.Blit(ctaa.rtAccum0, ctx.destination);
-                    }
-
-                    //-----------------------------------------------------------            
-                    ctaa.swap = !ctaa.swap;
+                    ctaa.ctaaMat.SetTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccum1);
+                    //UnityEngine.Graphics.Blit(ctaaSource, rtAccum0, ctaaMat);
+                    //UnityEngine.Graphics.Blit(rtAccum0, destination);
+                    cmd.Blit(ctaaSource, ctaa.rtAccum0, ctaa.ctaaMat);
+                    cmd.Blit(ctaa.rtAccum0, ctx.destination);
                 }
 
-                
+                //-----------------------------------------------------------            
+                ctaa.swap = !ctaa.swap;
+
+
             }
             else
             {
                 //UnityEngine.Graphics.Blit(source, destination);
                 cmd.Blit(ctx.source, ctx.destination);
             }
-            //Write vars
+            // This two method will not work as intended because it's in the static context 
+            /*//Write vars
             ctaa.WriteScreenSize();
-            ctaa.WriteSuperSamplingMode();
+            ctaa.WriteSuperSamplingMode();*/
         }
     }
 
@@ -369,6 +334,8 @@ namespace Graphics.CTAA
 
             }
         }
+
+
         private void OnDisable()
         {
             ClearCTAACameras();
@@ -461,6 +428,13 @@ namespace Graphics.CTAA
             WriteScreenSize();
             WriteSuperSamplingMode();
         }*/
+
+        private void OnPostRender()
+        {
+            //Write vars
+            WriteScreenSize();
+            WriteSuperSamplingMode();
+        }
 
         public static class CTAA_ShaderIDs
         {
@@ -571,7 +545,7 @@ namespace Graphics.CTAA
                 Destroy(m_LayerMaskCam.gameObject);
             }*/
         }
-        public RenderTexture getCTAA_Render()
+        public RenderTexture GetCTAA_Render()
         {
             return upScaleRT;
         }
