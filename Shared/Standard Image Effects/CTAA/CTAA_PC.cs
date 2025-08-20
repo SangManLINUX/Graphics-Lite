@@ -105,6 +105,19 @@ namespace Graphics.CTAA
     [AddComponentMenu("Image Effects/LIVENDA/CTAA_PC")]
     public class CTAA_PC : MonoBehaviour
     {
+        public static class CTAA_ShaderIDs
+        {
+            internal static readonly int _Accum = Shader.PropertyToID("_Accum");
+            internal static readonly int _AdaptiveResolve = Shader.PropertyToID("_AdaptiveResolve");
+            internal static readonly int _ControlParams = Shader.PropertyToID("_ControlParams");
+            internal static readonly int _AEXCTAA = Shader.PropertyToID("_AEXCTAA");
+            internal static readonly int _AEYCTAA = Shader.PropertyToID("_AEYCTAA");
+            internal static readonly int _AESCTAA = Shader.PropertyToID("_AESCTAA");
+            internal static readonly int _AEMAXCTAA = Shader.PropertyToID("_AEMAXCTAA");
+            internal static readonly int _AntiShimmer = Shader.PropertyToID("_AntiShimmer");
+            internal static readonly int _delValues = Shader.PropertyToID("_delValues");
+        }
+
         //CTAA Standard => None
         [Space(5)]
         public bool Enabled = true;
@@ -170,119 +183,10 @@ namespace Graphics.CTAA
         private int count = 0;
 
         public Camera MainCamera;
-        public void SetCTAA_Parameters()
-        {
-            PreEnhanceEnabled = AdaptiveSharpness > 0.01 ? true : false;
-            preEnhanceStrength = Mathf.Lerp(0.2f, 2.0f, AdaptiveSharpness);
-            preEnhanceClamp = Mathf.Lerp(0.005f, 0.12f, AdaptiveSharpness);
-            jitterScale = TemporalJitterScale;
-            //It's not a function for gaming. Don't use it.
-            ctaaMat.SetFloat(CTAA_ShaderIDs._AntiShimmer, (AntiShimmerMode ? 1.0f : 0.0f));
-            ctaaMat.SetVector(CTAA_ShaderIDs._delValues, new Vector4(0.01f, 2.0f, 0.5f, 0.3f));
-        }
+
         AssetBundle assetBundle;
-        void SetResources()
-        {
-            if (assetBundle == null)
-                assetBundle = AssetBundle.LoadFromMemory(ResourceUtils.GetEmbeddedResource("ctaa.unity3d"));
 
-            if (ctaaMat == null) ctaaMat = new Material(assetBundle.LoadAsset<Shader>("assets/shaders/ctaa_pc.shader"));
-            if (mat_enhance == null) mat_enhance = new Material(assetBundle.LoadAsset<Shader>("assets/shaders/ctaa_enhance_pc.shader"));
-        }
-        void ClearResources()
-        {
-            if (ctaaMat != null) DestroyMaterial(ctaaMat);
-            if (mat_enhance != null) DestroyMaterial(mat_enhance);
-            //Masking feature. Seems useless
-            //if (layerPostMat != null)     DestroyMaterial(layerPostMat);
-        }
-        private static void DestroyMaterial(Material mat)
-        {
-            if (mat != null)
-            {
-                Object.DestroyImmediate(mat);
-                mat = null;
-            }
-        }
-        private static void UpdateRT(ref RenderTexture rt, string rtName, int screenParamsX, int screenParamsY, int depth,
-                                     RenderTextureFormat renderTextureFormat, RenderTextureReadWrite renderTextureReadWrite, FilterMode filterMode, TextureWrapMode wrapMode,
-                                     bool preCreateRT = true)
-        {
-            if (rt != null)
-            {
-                RenderTexture.active = null;
-                rt.Release();
-                rt = null;
-            }
-            rt = new RenderTexture(screenParamsX, screenParamsY, depth, renderTextureFormat, renderTextureReadWrite);
-            rt.name = rtName;
-            rt.filterMode = filterMode;
-            rt.wrapMode = wrapMode;
-            if (preCreateRT)
-                rt.Create();
-        }
-        private void SetRT()
-        {
-            if (ChangedSuperSamplingMode())
-            {
-                if (SupersampleMode == CTAA_MODE.STANDARD)
-                    MainCamera.targetTexture = null;
-            }
-
-            var targetRT = MainCamera.targetTexture;
-            if (targetRT)
-            {
-                MainCamera.targetTexture = null;
-                orig_ScreenXY.Set(MainCamera.pixelWidth, MainCamera.pixelHeight);
-                MainCamera.targetTexture = targetRT;
-            }
-            else
-            {
-                MainCamera.targetTexture = null;
-                orig_ScreenXY.Set(MainCamera.pixelWidth, MainCamera.pixelHeight);
-            }
-
-            m_LayerRenderCam.enabled = (SupersampleMode > CTAA_MODE.STANDARD) ? true : false;
-            int depth = 0;
-            bool preCreate = true;
-            UpdateRT(ref upScaleRT, "RT_Upscale",
-                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
-                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
-                depth, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, FilterMode.Bilinear, TextureWrapMode.Clamp, preCreate);
-            UpdateRT(ref rtAccum0, "RT_Accum0",
-                (SupersampleMode == CTAA_MODE.CINA_ULTRA) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
-                (SupersampleMode == CTAA_MODE.CINA_ULTRA) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
-                depth, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Default, FilterMode.Bilinear, TextureWrapMode.Clamp, preCreate);
-            UpdateRT(ref rtAccum1, "RT_Accum1",
-                (SupersampleMode == CTAA_MODE.CINA_ULTRA) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
-                (SupersampleMode == CTAA_MODE.CINA_ULTRA) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
-                depth, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Default, FilterMode.Bilinear, TextureWrapMode.Clamp, preCreate);
-            UpdateRT(ref afterPreEnhace, "RT_AfterPreEnhace",
-                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
-                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
-                depth, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Default, FilterMode.Bilinear, TextureWrapMode.Clamp, preCreate);
-
-            if (SupersampleMode > CTAA_MODE.STANDARD)
-            {
-                Debug.Log($"CTAA updated. Supersample Mode: {prev_SupersampleMode} => {SupersampleMode} " +
-                          $"Source Size: {orig_ScreenXY.x}x{orig_ScreenXY.y} => Upscaled Size: {orig_ScreenXY.x << 1}x{orig_ScreenXY.y << 1}");
-            }
-            else
-            {
-                Debug.Log($"CTAA updated. Supersample Mode: {prev_SupersampleMode} => {SupersampleMode} " +
-                          $"Source Size: {orig_ScreenXY.x}x{orig_ScreenXY.y}");
-            }
-        }
-        void ClearRT()
-        {
-            if (rtAccum0 != null) DestroyImmediate(rtAccum0); rtAccum0 = null;
-            if (rtAccum1 != null) DestroyImmediate(rtAccum1); rtAccum1 = null;
-            if (afterPreEnhace != null) DestroyImmediate(afterPreEnhace); afterPreEnhace = null;
-
-            GetComponent<Camera>().targetTexture = null;
-            if (upScaleRT != null) DestroyImmediate(upScaleRT); upScaleRT = null;
-        }
-        void Awake()
+        private void Awake()
         {
             MainCamera = GetComponent<Camera>();
 
@@ -294,7 +198,8 @@ namespace Graphics.CTAA
 
             SetCTAA_Parameters();
         }
-        void OnEnable()
+
+        private void OnEnable()
         {
             MainCamera = GetComponent<Camera>();
 
@@ -310,7 +215,13 @@ namespace Graphics.CTAA
             MainCamera.depthTextureMode |= DepthTextureMode.MotionVectors;
 
         }
-        void LateUpdate()
+
+        private void Start()
+        {
+            MainCamera = GetComponent<Camera>();
+        }
+
+        private void LateUpdate()
         {
             if (moveActive)
             {
@@ -335,33 +246,7 @@ namespace Graphics.CTAA
             }
         }
 
-
-        private void OnDisable()
-        {
-            ClearCTAACameras();
-            ClearResources();
-            ClearRT();
-            MainCamera.ResetWorldToCameraMatrix();     // < ----- Unity 2017 Up
-            MainCamera.ResetProjectionMatrix();        // < ----- Unity 2017 Up
-
-            MainCamera.nonJitteredProjectionMatrix = MainCamera.projectionMatrix;
-        }
-        private void OnDestroy()
-        {
-            ClearCTAACameras();
-            ClearResources();
-            ClearRT();
-        }
-        private void Start()
-        {
-            MainCamera = GetComponent<Camera>();
-        }
-        private bool ChangedSuperSamplingMode() => prev_SupersampleMode != SupersampleMode;
-        public void WriteSuperSamplingMode() => prev_SupersampleMode = SupersampleMode;
-        private bool ChangedScreenSize() => (prev_ScreenXY.x != MainCamera.pixelWidth) || (prev_ScreenXY.y != MainCamera.pixelHeight);
-        public void WriteScreenSize() { prev_ScreenXY.x = MainCamera.pixelWidth; prev_ScreenXY.y = MainCamera.pixelHeight; }
-        private bool NullRT() => (upScaleRT == null) || (rtAccum0 == null) || (rtAccum1 == null) || (afterPreEnhace == null);
-        void OnPreCull()
+        private void OnPreCull()
         {
             if (Enabled == false)
                 return;
@@ -379,7 +264,8 @@ namespace Graphics.CTAA
             }
             jitterCam();
         }
-        /*void OnRenderImage(RenderTexture source, RenderTexture destination)
+
+        /*private void OnRenderImage(RenderTexture source, RenderTexture destination)
         {
             if (Enabled)
             {
@@ -436,18 +322,147 @@ namespace Graphics.CTAA
             WriteSuperSamplingMode();
         }
 
-        public static class CTAA_ShaderIDs
+        private void OnDisable()
         {
-            internal static readonly int _Accum = Shader.PropertyToID("_Accum");
-            internal static readonly int _AdaptiveResolve = Shader.PropertyToID("_AdaptiveResolve");
-            internal static readonly int _ControlParams = Shader.PropertyToID("_ControlParams");
-            internal static readonly int _AEXCTAA = Shader.PropertyToID("_AEXCTAA");
-            internal static readonly int _AEYCTAA = Shader.PropertyToID("_AEYCTAA");
-            internal static readonly int _AESCTAA = Shader.PropertyToID("_AESCTAA");
-            internal static readonly int _AEMAXCTAA = Shader.PropertyToID("_AEMAXCTAA");
-            internal static readonly int _AntiShimmer = Shader.PropertyToID("_AntiShimmer");
-            internal static readonly int _delValues = Shader.PropertyToID("_delValues");
+            ClearCTAACameras();
+            ClearResources();
+            ClearRT();
+            MainCamera.ResetWorldToCameraMatrix();     // < ----- Unity 2017 Up
+            MainCamera.ResetProjectionMatrix();        // < ----- Unity 2017 Up
+
+            MainCamera.nonJitteredProjectionMatrix = MainCamera.projectionMatrix;
         }
+
+        private void OnDestroy()
+        {
+            ClearCTAACameras();
+            ClearResources();
+            ClearRT();
+        }
+
+        public void SetCTAA_Parameters()
+        {
+            PreEnhanceEnabled = AdaptiveSharpness > 0.01 ? true : false;
+            preEnhanceStrength = Mathf.Lerp(0.2f, 2.0f, AdaptiveSharpness);
+            preEnhanceClamp = Mathf.Lerp(0.005f, 0.12f, AdaptiveSharpness);
+            jitterScale = TemporalJitterScale;
+            //It's not a function for gaming. Don't use it.
+            ctaaMat.SetFloat(CTAA_ShaderIDs._AntiShimmer, (AntiShimmerMode ? 1.0f : 0.0f));
+            ctaaMat.SetVector(CTAA_ShaderIDs._delValues, new Vector4(0.01f, 2.0f, 0.5f, 0.3f));
+        }
+
+        void SetResources()
+        {
+            if (assetBundle == null)
+                assetBundle = AssetBundle.LoadFromMemory(ResourceUtils.GetEmbeddedResource("ctaa.unity3d"));
+
+            if (ctaaMat == null) ctaaMat = new Material(assetBundle.LoadAsset<Shader>("assets/shaders/ctaa_pc.shader"));
+            if (mat_enhance == null) mat_enhance = new Material(assetBundle.LoadAsset<Shader>("assets/shaders/ctaa_enhance_pc.shader"));
+        }
+
+        void ClearResources()
+        {
+            if (ctaaMat != null) DestroyMaterial(ctaaMat);
+            if (mat_enhance != null) DestroyMaterial(mat_enhance);
+            //Masking feature. Seems useless
+            //if (layerPostMat != null)     DestroyMaterial(layerPostMat);
+        }
+
+        private static void DestroyMaterial(Material mat)
+        {
+            if (mat != null)
+            {
+                Object.DestroyImmediate(mat);
+                mat = null;
+            }
+        }
+
+        private static void UpdateRT(ref RenderTexture rt, string rtName, int screenParamsX, int screenParamsY, int depth,
+                                     RenderTextureFormat renderTextureFormat, RenderTextureReadWrite renderTextureReadWrite,
+                                     FilterMode filterMode, TextureWrapMode wrapMode, bool preCreateRT = true)
+        {
+            if (rt != null)
+            {
+                RenderTexture.active = null;
+                rt.Release();
+                rt = null;
+            }
+            rt = new RenderTexture(screenParamsX, screenParamsY, depth, renderTextureFormat, renderTextureReadWrite);
+            rt.name = rtName;
+            rt.filterMode = filterMode;
+            rt.wrapMode = wrapMode;
+            if (preCreateRT)
+                rt.Create();
+        }
+
+        private void SetRT()
+        {
+            if (ChangedSuperSamplingMode())
+            {
+                if (SupersampleMode == CTAA_MODE.STANDARD)
+                    MainCamera.targetTexture = null;
+            }
+
+            var targetRT = MainCamera.targetTexture;
+            if (targetRT)
+            {
+                MainCamera.targetTexture = null;
+                orig_ScreenXY.Set(MainCamera.pixelWidth, MainCamera.pixelHeight);
+                MainCamera.targetTexture = targetRT;
+            }
+            else
+            {
+                MainCamera.targetTexture = null;
+                orig_ScreenXY.Set(MainCamera.pixelWidth, MainCamera.pixelHeight);
+            }
+
+            m_LayerRenderCam.enabled = (SupersampleMode > CTAA_MODE.STANDARD) ? true : false;
+            int depth = 0;
+            bool preCreate = true;
+            UpdateRT(ref upScaleRT, "RT_Upscale",
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
+                depth, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, FilterMode.Bilinear, TextureWrapMode.Clamp, preCreate);
+            UpdateRT(ref rtAccum0, "RT_Accum0",
+                (SupersampleMode == CTAA_MODE.CINA_ULTRA) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
+                (SupersampleMode == CTAA_MODE.CINA_ULTRA) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
+                depth, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Default, FilterMode.Bilinear, TextureWrapMode.Clamp, preCreate);
+            UpdateRT(ref rtAccum1, "RT_Accum1",
+                (SupersampleMode == CTAA_MODE.CINA_ULTRA) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
+                (SupersampleMode == CTAA_MODE.CINA_ULTRA) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
+                depth, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Default, FilterMode.Bilinear, TextureWrapMode.Clamp, preCreate);
+            UpdateRT(ref afterPreEnhace, "RT_AfterPreEnhace",
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
+                depth, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Default, FilterMode.Bilinear, TextureWrapMode.Clamp, preCreate);
+
+            if (SupersampleMode > CTAA_MODE.STANDARD)
+            {
+                Debug.Log($"CTAA updated. Supersample Mode: {prev_SupersampleMode} => {SupersampleMode} " +
+                          $"Source Size: {orig_ScreenXY.x}x{orig_ScreenXY.y} => Upscaled Size: {orig_ScreenXY.x << 1}x{orig_ScreenXY.y << 1}");
+            }
+            else
+            {
+                Debug.Log($"CTAA updated. Supersample Mode: {prev_SupersampleMode} => {SupersampleMode} " +
+                          $"Source Size: {orig_ScreenXY.x}x{orig_ScreenXY.y}");
+            }
+        }
+
+        void ClearRT()
+        {
+            if (rtAccum0 != null) DestroyImmediate(rtAccum0); rtAccum0 = null;
+            if (rtAccum1 != null) DestroyImmediate(rtAccum1); rtAccum1 = null;
+            if (afterPreEnhace != null) DestroyImmediate(afterPreEnhace); afterPreEnhace = null;
+
+            GetComponent<Camera>().targetTexture = null;
+            if (upScaleRT != null) DestroyImmediate(upScaleRT); upScaleRT = null;
+        }
+        
+        private bool ChangedSuperSamplingMode() => prev_SupersampleMode != SupersampleMode;
+        public void WriteSuperSamplingMode() => prev_SupersampleMode = SupersampleMode;
+        private bool ChangedScreenSize() => (prev_ScreenXY.x != MainCamera.pixelWidth) || (prev_ScreenXY.y != MainCamera.pixelHeight);
+        public void WriteScreenSize() { prev_ScreenXY.x = MainCamera.pixelWidth; prev_ScreenXY.y = MainCamera.pixelHeight; }
+        private bool NullRT() => (upScaleRT == null) || (rtAccum0 == null) || (rtAccum1 == null) || (afterPreEnhace == null);
 
         #region CTAA Subcamera
         RenderPostCTAA renderPostCTAA;
@@ -456,6 +471,7 @@ namespace Graphics.CTAA
         //Camera m_LayerMaskCam;
         public LayerMask m_ExcludeLayers;
         public bool m_LayerMaskingEnabled = true;
+
         void jitterCam()
         {
             MainCamera.ResetWorldToCameraMatrix();     // < ----- Unity 2017 Up
@@ -473,6 +489,7 @@ namespace Graphics.CTAA
             MainCamera.projectionMatrix = matrixx;
 
         }
+
         void SetCTAACameras()
         {
             //Masking feature. Seems useless
@@ -531,6 +548,7 @@ namespace Graphics.CTAA
 
             }
         }
+
         void ClearCTAACameras()
         {
             if (m_LayerRenderCam != null)
@@ -545,10 +563,12 @@ namespace Graphics.CTAA
                 Destroy(m_LayerMaskCam.gameObject);
             }*/
         }
+
         public RenderTexture GetCTAA_Render()
         {
             return upScaleRT;
         }
+
         #endregion
     }
 }
