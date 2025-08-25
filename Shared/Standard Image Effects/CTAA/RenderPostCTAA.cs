@@ -55,7 +55,7 @@ namespace Graphics.CTAA
              }
              if (layerMaskingEnabled)
                  MaskRenderCam.RenderWithShader(maskRenderShader, "");*/
-            RenderTexture tmprt = ctaaPC.getCTAA_Render();
+            RenderTexture tmprt = ctaaPC.GetCTAA_Render();
 
             if (tmprt != null)
             {
