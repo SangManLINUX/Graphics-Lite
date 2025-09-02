@@ -38,10 +38,14 @@ namespace Graphics.CTAA
             var ctaa = ctx.camera.GetComponent<CTAA_PC>();
 
             Assert.IsNotNull(ctaa);
-            
+
             if (ctaa.CTAA_Enabled)
             {
                 ctaa.SetCTAA_Parameters();
+
+                ctaa.depthRT = Shader.GetGlobalTexture(ctaa.depthTexID) as RenderTexture;
+                ctaa.ctaaDepthMat.SetTexture("_MainTex", ctaa.depthRT);
+                cmd.Blit(ctaa.depthRT, ctaa.depthToGrayRT, ctaa.ctaaDepthMat, CTAA_PC.Pass.NonLinearDepthToLinearDepth);
 
                 //Use Sharpening
                 if (ctaa.PreEnhanceEnabled)
@@ -51,17 +55,21 @@ namespace Graphics.CTAA
                     ctaa.mat_enhance.SetFloat(CTAA_PC.CTAA_ShaderIDs._AESCTAA, ctaa.preEnhanceStrength);
                     ctaa.mat_enhance.SetFloat(CTAA_PC.CTAA_ShaderIDs._AEMAXCTAA, ctaa.preEnhanceClamp);
                     //UnityEngine.Graphics.Blit(source, afterPreEnhace, mat_enhance, 1);
+                    cmd.Blit(ctaa.depthToGrayRT, ctaa.depthAfterPreEnhace, ctaa.mat_enhance, 1);
                     cmd.Blit(ctx.source, ctaa.afterPreEnhace, ctaa.mat_enhance, 1);
                 }
 
                 //-----------------------------------------------------------
 
+                var ctaaDepthSource = ctaa.PreEnhanceEnabled ? ctaa.depthAfterPreEnhace : ctaa.depthToGrayRT;
                 //RenderTexture ctaaSource = ctaa.PreEnhanceEnabled ? ctaa.afterPreEnhace : source;
                 var ctaaSource = ctaa.PreEnhanceEnabled ? ctaa.afterPreEnhace : ctx.source;
                 
                 if (ctaa.firstFrame)
                 {
                     //UnityEngine.Graphics.Blit(ctaaSource, rtAccum0);
+                    cmd.Blit(ctaa.depthToGrayRT, ctaa.rtAccumDepthToGray0);
+
                     cmd.Blit(ctaaSource, ctaa.rtAccum0);
                     ctaa.firstFrame = false;
                 }
@@ -72,23 +80,37 @@ namespace Graphics.CTAA
 
                 if (ctaa.swap)
                 {
-                    ctaa.ctaaMat.SetTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccum0);
-                    //UnityEngine.Graphics.Blit(ctaaSource, rtAccum1, ctaaMat);
-                    //UnityEngine.Graphics.Blit(rtAccum1, destination);
+                    //ctaa.ctaaMat.SetTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccumDepthToGray0);
+                    cmd.SetGlobalTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccumDepthToGray0);
+                    cmd.Blit(ctaaDepthSource, ctaa.rtAccumDepthToGray1, ctaa.ctaaMat);
+                    //ctaa.ctaaDepthMat.SetTexture("_MainTex", ctaa.rtAccumDepthToGray1);
+                    //cmd.Blit(null, BuiltinRenderTextureType.None, ctaa.ctaaDepthMat, CTAA_PC.Pass.LinearDepthToNonLinearDepth);
+                    cmd.Blit(ctaa.rtAccumDepthToGray1, ctaa.grayToDepthRT, ctaa.ctaaDepthMat, CTAA_PC.Pass.LinearDepthToNonLinearDepth);
+                    cmd.SetGlobalTexture("_CameraDepthTextureAA", ctaa.grayToDepthRT);
+
+                    //ctaa.ctaaMat.SetTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccum0);
+                    cmd.SetGlobalTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccum0);
                     cmd.Blit(ctaaSource, ctaa.rtAccum1, ctaa.ctaaMat);
                     cmd.Blit(ctaa.rtAccum1, ctx.destination);
                 }
                 else
                 {
-                    ctaa.ctaaMat.SetTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccum1);
-                    //UnityEngine.Graphics.Blit(ctaaSource, rtAccum0, ctaaMat);
-                    //UnityEngine.Graphics.Blit(rtAccum0, destination);
+                    //ctaa.ctaaMat.SetTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccumDepthToGray1);
+                    cmd.SetGlobalTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccumDepthToGray1);
+                    cmd.Blit(ctaaDepthSource, ctaa.rtAccumDepthToGray0, ctaa.ctaaMat);
+                    //ctaa.ctaaDepthMat.SetTexture("_MainTex", ctaa.rtAccumDepthToGray0);
+                    //cmd.Blit(null, BuiltinRenderTextureType.None, ctaa.ctaaDepthMat, CTAA_PC.Pass.LinearDepthToNonLinearDepth);
+                    cmd.Blit(ctaa.rtAccumDepthToGray0, ctaa.grayToDepthRT, ctaa.ctaaDepthMat, CTAA_PC.Pass.LinearDepthToNonLinearDepth);
+                    cmd.SetGlobalTexture("_CameraDepthTextureAA", ctaa.grayToDepthRT);
+
+                    //ctaa.ctaaMat.SetTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccum1);
+                    cmd.SetGlobalTexture(CTAA_PC.CTAA_ShaderIDs._Accum, ctaa.rtAccum1);
                     cmd.Blit(ctaaSource, ctaa.rtAccum0, ctaa.ctaaMat);
                     cmd.Blit(ctaa.rtAccum0, ctx.destination);
                 }
 
                 //-----------------------------------------------------------            
-
+                
                 ctaa.swap = !ctaa.swap;
             }
             else
@@ -177,6 +199,15 @@ namespace Graphics.CTAA
         public RenderTexture afterPreEnhace;
         private RenderTexture upScaleRT;
 
+        public Material ctaaDepthMat;
+        public RenderTexture depthRT;
+        public RenderTexture grayToDepthRT;
+        public RenderTexture depthToGrayRT;
+        public RenderTexture rtAccumDepthToGray0;
+        public RenderTexture rtAccumDepthToGray1;
+        public RenderTexture depthAfterPreEnhace;
+        public readonly int depthTexID = Shader.PropertyToID("_CameraDepthTexture");
+
         public bool firstFrame;
         public bool swap;
         private int frameCounter;
@@ -191,12 +222,20 @@ namespace Graphics.CTAA
         public Camera mainCamera;
 
         AssetBundle assetBundle;
+        AssetBundle assetBundleDepth;
 
         //For detecting SS mode and screen size change.
         private CTAA_MODE prev_SupersampleMode;
         private Vector2Int prev_ScreenXY;
         private Vector2Int orig_ScreenXY;
 
+        public struct Pass
+        {
+            public static int DepthToGray = 0;
+            public static int GrayToDepth = 1;
+            public static int NonLinearDepthToLinearDepth = 2;
+            public static int LinearDepthToNonLinearDepth = 3;
+        }
 
         private void Awake()
         {
@@ -378,6 +417,11 @@ namespace Graphics.CTAA
                 assetBundle = AssetBundle.LoadFromMemory(ResourceUtils.GetEmbeddedResource("ctaav3.unity3d"));
             }
 
+            if (assetBundleDepth == null)
+            {
+                assetBundleDepth = AssetBundle.LoadFromMemory(ResourceUtils.GetEmbeddedResource("ctaa-depth.unity3d"));
+            }
+
             // V2 style
             //if (ctaaMat == null) ctaaMat = new Material(assetBundle.LoadAsset<Shader>("assets/shaders/ctaa_pc.shader"));
             //if (mat_enhance == null) mat_enhance = new Material(assetBundle.LoadAsset<Shader>("assets/shaders/ctaa_enhance_pc.shader"));
@@ -385,12 +429,16 @@ namespace Graphics.CTAA
             // V3 style
             if (ctaaMat == null) ctaaMat = new Material(assetBundle.LoadAsset<Shader>("Assets/CTAAV3/CTAA_PC.shader")) { hideFlags = HideFlags.HideAndDontSave };
             if (mat_enhance == null) mat_enhance = new Material(assetBundle.LoadAsset<Shader>("Assets/CTAAV3/CTAA_Enhance_PC.shader")) { hideFlags = HideFlags.HideAndDontSave };
+
+            if (ctaaDepthMat == null) ctaaDepthMat = new Material(assetBundleDepth.LoadAsset<Shader>("Assets/Shaders/CTAADepthToGrayscale.shader")) { hideFlags = HideFlags.HideAndDontSave };
         }
 
         private void ClearResources()
         {
             if (ctaaMat != null) DestroyMaterial(ctaaMat);
             if (mat_enhance != null) DestroyMaterial(mat_enhance);
+
+            if (ctaaDepthMat != null) DestroyMaterial(ctaaDepthMat);
             //Masking feature. Seems useless
             //if (layerPostMat != null)     DestroyMaterial(layerPostMat);
         }
@@ -447,6 +495,19 @@ namespace Graphics.CTAA
             int depth = 0;
             bool preCreate = true;
 
+            UpdateRT(ref depthRT, "RT_CameraDepthTexture",
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
+                depth, RenderTextureFormat.RHalf, RenderTextureReadWrite.sRGB, FilterMode.Point, TextureWrapMode.Clamp, preCreate);
+            UpdateRT(ref grayToDepthRT, "RT_grayToDepthRT",
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
+                24, RenderTextureFormat.Depth, RenderTextureReadWrite.Linear, FilterMode.Point, TextureWrapMode.Clamp, preCreate);
+            UpdateRT(ref depthToGrayRT, "RT_depthToGrayRT",
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
+                depth, RenderTextureFormat.RHalf, RenderTextureReadWrite.sRGB, FilterMode.Point, TextureWrapMode.Clamp, preCreate);
+
             // TODO: Check RenderTextureFormat, RenderTextureReadWrite, FilterMode, and TextureWrapMode again.
             UpdateRT(ref upScaleRT, "RT_Upscale",
                 (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
@@ -464,6 +525,23 @@ namespace Graphics.CTAA
                 (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
                 (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
                 depth, RenderTextureFormat.DefaultHDR, RenderTextureReadWrite.Default, FilterMode.Point, TextureWrapMode.Clamp, preCreate);
+
+            UpdateRT(ref rtAccumDepthToGray0, "RT_AccumDepthToGray0",
+                (SupersampleMode == CTAA_MODE.CINA_ULTRA) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
+                (SupersampleMode == CTAA_MODE.CINA_ULTRA) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
+                0, RenderTextureFormat.RHalf, RenderTextureReadWrite.sRGB, FilterMode.Bilinear, TextureWrapMode.Repeat, preCreate);
+            UpdateRT(ref rtAccumDepthToGray1, "RT_AccumDepthToGray1",
+                (SupersampleMode == CTAA_MODE.CINA_ULTRA) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
+                (SupersampleMode == CTAA_MODE.CINA_ULTRA) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
+                0, RenderTextureFormat.RHalf, RenderTextureReadWrite.sRGB, FilterMode.Bilinear, TextureWrapMode.Repeat, preCreate);
+            UpdateRT(ref depthAfterPreEnhace, "RT_DepthAfterPreEnhace",
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y,
+                0, RenderTextureFormat.RHalf, RenderTextureReadWrite.sRGB, FilterMode.Point, TextureWrapMode.Clamp, preCreate);
+
+
+            /*depthRT = new RenderTexture((SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.x << 1 : orig_ScreenXY.x,
+                (SupersampleMode > CTAA_MODE.STANDARD) ? orig_ScreenXY.y << 1 : orig_ScreenXY.y, 24, RenderTextureFormat.Depth);*/
 
             if (SupersampleMode > CTAA_MODE.STANDARD)
             {
@@ -485,6 +563,16 @@ namespace Graphics.CTAA
 
             mainCamera.targetTexture = null;
             if (upScaleRT != null) DestroyImmediate(upScaleRT); upScaleRT = null;
+
+            Shader.SetGlobalTexture(depthTexID, null);
+            // Don't ever do this DestroyImmediate(depthRT), it's a global "_CameraDepthTexture".
+            //if (depthRT != null) DestroyImmediate(depthRT); depthRT = null;
+
+            if (grayToDepthRT != null) DestroyImmediate(grayToDepthRT); grayToDepthRT = null;
+            if (depthToGrayRT != null) DestroyImmediate(depthToGrayRT); depthToGrayRT = null;
+            if (rtAccumDepthToGray0 != null) DestroyImmediate(rtAccumDepthToGray0); rtAccumDepthToGray0 = null;
+            if (rtAccumDepthToGray1 != null) DestroyImmediate(rtAccumDepthToGray1); rtAccumDepthToGray1 = null;
+            if (depthAfterPreEnhace != null) DestroyImmediate(depthAfterPreEnhace); depthAfterPreEnhace = null;
         }
         
         private bool ChangedSuperSamplingMode() => prev_SupersampleMode != SupersampleMode;
