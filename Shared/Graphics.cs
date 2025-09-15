@@ -190,10 +190,12 @@ namespace Graphics
 
             _ditheredshadowsManager = new DitheredShadowsManager();
             _ditheredshadowsManager.Initialize();
-
+#if AI
+            // do nothing
+#else
             _decalsSystemManager = new DecalsSystemManager();
             _decalsSystemManager.Initialize();
-
+#endif
             if (KKAPI.Studio.StudioAPI.InsideStudio)
                 smartphoneScanner = this.gameObject.AddComponent<HoohSmartphoneScanner>();
 
