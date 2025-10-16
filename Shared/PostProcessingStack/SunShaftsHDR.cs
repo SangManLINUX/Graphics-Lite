@@ -106,7 +106,7 @@ namespace Graphics
             int rtH = context.height; //source.height / divider;
 
             //lrDepthBuffer = RenderTexture.GetTemporary(rtW, rtH, 0);
-            context.command.GetTemporaryRT(_lrDepthBuffer_ID, rtW, rtH, 0);
+            context.command.GetTemporaryRT(_lrDepthBuffer_ID, rtW, rtH, 0, FilterMode.Bilinear);
 
             //mask out everything except the skybox
             //we have 2 methods, one of which requires depth buffer support, the other one is just comparing images
@@ -119,7 +119,7 @@ namespace Graphics
                 var format = camera.allowHDR ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.Default; //v3.4.9
                 //RenderTexture tmpBuffer = RenderTexture.GetTemporary(context.width, context.height, 0, format);
                 //RenderTexture.active = tmpBuffer;
-                context.command.GetTemporaryRT(_tmpBuffer_ID, context.width, context.height, 0, default, format);
+                context.command.GetTemporaryRT(_tmpBuffer_ID, rtW, rtH, 0, FilterMode.Bilinear, format);
                 context.command.SetRenderTarget(_tmpBuffer_ID);
                 GL.ClearWithSkybox(false, camera);
 
@@ -149,7 +149,7 @@ namespace Graphics
                 // we update _BlurRadius each time to cheaply get a very smooth look
 
                 //lrColorB = RenderTexture.GetTemporary(rtW, rtH, 0);
-                context.command.GetTemporaryRT(_lrColorB_ID, context.width, context.height, 0);
+                context.command.GetTemporaryRT(_lrColorB_ID, rtW, rtH, 0, FilterMode.Bilinear);
 
                 //context.command.BlitFullscreenTriangle(lrDepthBuffer, lrColorB, sheetSHAFTS, 1);
                 //RenderTexture.ReleaseTemporary(lrDepthBuffer);
@@ -160,7 +160,7 @@ namespace Graphics
                 sheetSHAFTS.properties.SetVector("_BlurRadius4", new Vector4(ofs, ofs, 0.0f, 0.0f));
 
                 //lrDepthBuffer = RenderTexture.GetTemporary(rtW, rtH, 0);
-                context.command.GetTemporaryRT(_lrDepthBuffer_ID, context.width, context.height, 0);
+                context.command.GetTemporaryRT(_lrDepthBuffer_ID, rtW, rtH, 0, FilterMode.Bilinear);
 
                 //context.command.BlitFullscreenTriangle(lrColorB, lrDepthBuffer, sheetSHAFTS, 1);
                 //RenderTexture.ReleaseTemporary(lrColorB);
